@@ -6,13 +6,18 @@ import (
 )
 
 func GatewayRouter(r *gin.Engine) {
-	// r.Static("assets/", "./assets")
-
-	master := r.Group("/auth")
+	master := r.Group("/test")
 	{
-		master.POST("/login", func(c *gin.Context) {
+		master.POST("/write", func(c *gin.Context) {
+			jsonData, _ := c.GetRawData()
 			c.Header("Content-Type", "application/json; charset=utf-8")
-			controllers.SaveRedis()
+			succ,_:=controllers.SaveRedis("testx",string(jsonData))
+			c.String(200, succ)
+		})
+		master.GET("/read", func(c *gin.Context) {
+			q,_:=c.GetQuery("key")
+			succ:=controllers.GetRedis(q)
+			c.String(200, succ)
 		})
 	}
 }
