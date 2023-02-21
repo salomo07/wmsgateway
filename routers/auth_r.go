@@ -4,6 +4,12 @@ import (
 	"wmsgateway/controllers"
 	"github.com/gin-gonic/gin"
 )
+type RequestLog struct {
+	Ip  string `json:"ip"`
+	DeviceName string `json:"devicename"`
+	Url string `json:"url"`
+	Payload string `json:"payload"`
+}
 
 func GatewayRouter(r *gin.Engine) {
 	master := r.Group("/test")
