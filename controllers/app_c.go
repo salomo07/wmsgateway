@@ -7,10 +7,11 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
-
+	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
+	"time"
 )
 
 var rdb *redis.Client
@@ -56,23 +57,25 @@ func ForwardRequest(service string, c *gin.Context) {
 	}
 	remote, err := url.Parse("http://localhost:7890/")
 	if err != nil {
-		log.Println(err)
-		panic(err)
+		log.Println("Error : ",err)
+		// panic(err)
 	}
+	start := time.Now()
 	proxy := httputil.NewSingleHostReverseProxy(remote)
-	// log.Println(proxy)
-	// //Define the director func
-	// //This is a good place to log, for example
 	proxy.Director = func(req *http.Request) {
 		req.Header = c.Request.Header
 		req.URL.Scheme = remote.Scheme
 		req.URL.Host = remote.Host
 		req.URL.Path = c.Request.URL.String()
-		// Disini tempat untuk save LOG
+		// Disini tempat untuk save LOG Request
 	}
 
 	proxy.ModifyResponse = func(resp *http.Response) error {
-		log.Println("xxxx", resp)
+		log.Println("ModifyResponse : ",time.Since(start))
+		// Disini tempat untuk save LOG Response
+		if resp.StatusCode != 200{
+			return errors.New(http.StatusText(resp.StatusCode))	 
+		}		
 		return nil
 	}
 	proxy.ServeHTTP(c.Writer, c.Request)
