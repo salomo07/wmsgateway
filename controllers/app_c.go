@@ -7,11 +7,11 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
-	"errors"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
-	"time"
 )
 
 var rdb *redis.Client
@@ -51,13 +51,19 @@ func GetRedis(key string) string {
 	}
 	return val
 }
+func GetBestHost() string {
+	return "http://localhost:7890"
+}
 func ForwardRequest(service string, c *gin.Context) {
+	log.Println(service, c.Request.URL.String())
 	if service == "" {
 		panic("Service tidak dikenali")
 	}
-	remote, err := url.Parse("http://localhost:7890/")
+	bestHost := GetBestHost()
+	log.Println("Ini dari qwerty: ", c.Request.Host+c.Request.URL.String())
+	remote, err := url.Parse(bestHost + c.Request.URL.String())
 	if err != nil {
-		log.Println("Error : ",err)
+		log.Println("Error : ", err)
 		// panic(err)
 	}
 	start := time.Now()
@@ -71,11 +77,11 @@ func ForwardRequest(service string, c *gin.Context) {
 	}
 
 	proxy.ModifyResponse = func(resp *http.Response) error {
-		log.Println("ModifyResponse : ",time.Since(start))
+		log.Println("ModifyResponse : ", time.Since(start), "StatusCode : ", resp.Body)
+		// if resp.StatusCode != 200 {
+		// 	return errors.New(http.StatusText(resp.StatusCode))
+		// }
 		// Disini tempat untuk save LOG Response
-		if resp.StatusCode != 200{
-			return errors.New(http.StatusText(resp.StatusCode))	 
-		}		
 		return nil
 	}
 	proxy.ServeHTTP(c.Writer, c.Request)
