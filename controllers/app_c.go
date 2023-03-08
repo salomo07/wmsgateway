@@ -55,17 +55,17 @@ func GetBestHost() string {
 	return "http://localhost:7890"
 }
 func ForwardRequest(service string, c *gin.Context) {
-	// log.Println(service, c.Request.URL.String())
+
 	if service == "" {
 		panic("Service tidak dikenali")
 	}
 	bestHost := GetBestHost()
-	// log.Println("Ini dari qwerty: ", c.Request.Host+c.Request.URL.String())
 	remote, err := url.Parse(bestHost + c.Request.URL.String())
-	if err != nil {
-		log.Println("Error : ", err)
-		panic(err)
+
+	if err != nil { //Gagal parse URL
+		c.JSON(502, map[string]interface{}{"error": err})
 	}
+	log.Println("Error xxx: ")
 	start := time.Now()
 	proxy := httputil.NewSingleHostReverseProxy(remote)
 	proxy.Director = func(req *http.Request) {
@@ -79,6 +79,9 @@ func ForwardRequest(service string, c *gin.Context) {
 	proxy.ModifyResponse = func(resp *http.Response) error {
 		log.Println("ModifyResponse : ", time.Since(start), "StatusCode : ", resp.Body)
 		// Disini tempat untuk save LOG Response
+		if resp.StatusCode != 200 {
+			c.JSON(resp.StatusCode, map[string]interface{}{"error": http.StatusText(resp.StatusCode)})
+		}
 		return nil
 	}
 	proxy.ServeHTTP(c.Writer, c.Request)
