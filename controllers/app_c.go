@@ -2,6 +2,7 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -13,6 +14,12 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/redis/go-redis/v9"
 )
+
+type Server struct {
+	Host    string  `json:"host"`
+	Service string  `json:"service"`
+	Time    float32 `json:"time"`
+}
 
 var rdb *redis.Client
 var ctx = context.Background()
@@ -37,21 +44,36 @@ func init() {
 func SaveRedis(key string, data string) (string, string) {
 	err := rdb.Set(ctx, key, data, 0).Err()
 	if err != nil {
-		return `{"ok":true}`, `{"error":"` + err.Error() + `"}`
+		return `{"ok":true}`, err.Error()
 	}
 	return `{"ok":true}`, ""
 }
-func GetRedis(key string) string {
-	if ERROR_LOAD_ENV != "" {
-		return `{"error":"` + ERROR_LOAD_ENV + `"}`
-	}
+func GetRedis(key string) (string, string) {
 	val, err := rdb.Get(ctx, key).Result()
 	if err != nil {
-		return `{"error":"` + err.Error() + `"}`
+		return "", err.Error()
 	}
-	return val
+	return val, ""
 }
-func GetBestHost() string {
+func GetBestHost(c *gin.Context) string {
+	var srv []Server
+	// var b Server
+	data, errGet := GetRedis("serverList")
+	if errGet != "" {
+		c.JSON(500, map[string]interface{}{"error": errGet})
+	}
+	err := json.Unmarshal([]byte(string(data)), &srv)
+	if err != nil {
+		c.JSON(500, map[string]interface{}{"error": err.Error()})
+	}
+	// var t float32
+	// for i, s := range srv {
+	// 	value, err := strconv.ParseFloat(myString, 32)
+	// 	if i ==0{
+	// 		b=s
+	// 	}
+	// 	log.Println(i, s)
+	// }
 	return "http://localhost:7890"
 }
 func ForwardRequest(service string, c *gin.Context) {
@@ -59,7 +81,7 @@ func ForwardRequest(service string, c *gin.Context) {
 	if service == "" {
 		panic("Service tidak dikenali")
 	}
-	bestHost := GetBestHost()
+	bestHost := GetBestHost(c)
 	remote, err := url.Parse(bestHost + c.Request.URL.String())
 
 	if err != nil { //Gagal parse URL
