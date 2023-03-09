@@ -14,9 +14,6 @@ func main() {
 	})
 	// r.Any("/*proxyPath", controllers.ForwardRequest)
 
-	r.NoRoute(func(c *gin.Context) {
-		c.JSON(404, gin.H{"code": "404", "message": "Page not found"})
-	})
 	// port := os.Getenv("PORT")
 	r.Run(":7777")
 }

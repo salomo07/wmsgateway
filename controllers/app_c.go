@@ -65,7 +65,6 @@ func ForwardRequest(service string, c *gin.Context) {
 	if err != nil { //Gagal parse URL
 		c.JSON(502, map[string]interface{}{"error": err})
 	}
-	log.Println("Error xxx: ")
 	start := time.Now()
 	proxy := httputil.NewSingleHostReverseProxy(remote)
 	proxy.Director = func(req *http.Request) {
@@ -75,14 +74,14 @@ func ForwardRequest(service string, c *gin.Context) {
 		req.URL.Path = c.Request.URL.String()
 		// Disini tempat untuk save LOG Request
 	}
-
+	proxy.ErrorHandler = func(res http.ResponseWriter, req *http.Request, err error) {
+		log.Println("ErrorHandler", err)
+	}
 	proxy.ModifyResponse = func(resp *http.Response) error {
 		log.Println("ModifyResponse : ", time.Since(start), "StatusCode : ", resp.Body)
 		// Disini tempat untuk save LOG Response
-		if resp.StatusCode != 200 {
-			c.JSON(resp.StatusCode, map[string]interface{}{"error": http.StatusText(resp.StatusCode)})
-		}
 		return nil
 	}
+
 	proxy.ServeHTTP(c.Writer, c.Request)
 }
