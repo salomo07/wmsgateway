@@ -8,6 +8,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -55,7 +56,7 @@ func GetRedis(key string) (string, string) {
 	}
 	return val, ""
 }
-func GetBestHost(c *gin.Context) string {
+func GetFastestHost(c *gin.Context) string {
 	var srv []Server
 	// var b Server
 	data, errGet := GetRedis("serverList")
@@ -66,23 +67,22 @@ func GetBestHost(c *gin.Context) string {
 	if err != nil {
 		c.JSON(500, map[string]interface{}{"error": err.Error()})
 	}
-	// var t float32
-	// for i, s := range srv {
-	// 	value, err := strconv.ParseFloat(myString, 32)
-	// 	if i ==0{
-	// 		b=s
-	// 	}
-	// 	log.Println(i, s)
-	// }
+	fastest := srv[0]
+	for _, val := range srv {
+		if val.Time < fastest.Time {
+			fastest = val
+		}
+	}
+	log.Println("Fastest host : "+fastest.Host, "Time : $fastest.Time")
+	// return fastest.Host
 	return "http://localhost:7890"
 }
 func ForwardRequest(service string, c *gin.Context) {
-
 	if service == "" {
 		panic("Service tidak dikenali")
 	}
-	bestHost := GetBestHost(c)
-	remote, err := url.Parse(bestHost + c.Request.URL.String())
+	fastestHost := GetFastestHost(c)
+	remote, err := url.Parse(fastestHost + c.Request.URL.String())
 
 	if err != nil { //Gagal parse URL
 		c.JSON(502, map[string]interface{}{"error": err})
@@ -97,7 +97,10 @@ func ForwardRequest(service string, c *gin.Context) {
 		// Disini tempat untuk save LOG Request
 	}
 	proxy.ErrorHandler = func(res http.ResponseWriter, req *http.Request, err error) {
-		log.Println("ErrorHandler", err)
+		log.Println("ErrorHandler", err.Error())
+		if strings.Contains(err.Error(), "No connection could be made because the target machine actively refused it") {
+			log.Println("Hapus dari list")
+		}
 	}
 	proxy.ModifyResponse = func(resp *http.Response) error {
 		log.Println("ModifyResponse : ", time.Since(start), "StatusCode : ", resp.Body)

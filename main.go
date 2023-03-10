@@ -10,7 +10,9 @@ import (
 func main() {
 	r := gin.Default()
 	r.Any("/:service/*path", func(c *gin.Context) {
-		controllers.ForwardRequest(c.Param("service"), c)
+		if c.Param("service") != "gateway" {
+			controllers.ForwardRequest(c.Param("service"), c)
+		}
 	})
 	// r.Any("/*proxyPath", controllers.ForwardRequest)
 
