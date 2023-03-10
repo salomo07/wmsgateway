@@ -2,10 +2,7 @@ package routers
 
 import (
 	"log"
-	"net/http"
-	"net/http/httputil"
-	"net/url"
-	"strings"
+	"wmsgateway/controllers"
 	_ "wmsgateway/controllers"
 
 	"github.com/gin-gonic/gin"
@@ -22,55 +19,48 @@ type RequestLog struct {
 }
 
 func GatewayRouter(r *gin.Engine) {
-	r.LoadHTMLGlob("templates/*")
-	// test := r.Group("/test")
-	// {
-	// 	test.POST("/write", func(c *gin.Context) {
-	// 		// jsonData, _ := c.GetRawData()
-	// 		xxx:=string(c.Request.URL.Path)
-	// 		req:=RequestLog{Ip:c.ClientIP(),UserAgent:c.Request.Header.Get("User-Agent"),Url:xxx}
-	// 		// log.Println(c.ClientIP(),c.Request.URL,c.Request.Header.Get("User-Agent"))
-
-	// 		c.Header("Content-Type", "application/json; charset=utf-8")
-	// 		// succ,_:=controllers.SaveRedis("testx",string(jsonData))
-	// 		// c.String(200, succ)
-	// 		log.Println(req)
-	// 	})
-	// 	test.GET("/read", func(c *gin.Context) {
-	// 		q,_:=c.GetQuery("key")
-	// 		succ:=controllers.GetRedis(q)
-	// 		c.String(200, succ)
-	// 	})
-	// 	test.GET("/socket", func(c *gin.Context) {
-	// 		log.Println("Ini socket")
-	// 		c.HTML(200, "index.html", gin.H{})
-	// 		log.Println("Ini socketxxx")
-	// 	})
-	// }
-	// r.GET("/api/v1/:service/*path", func(c *gin.Context) {
-	// 	log.Println(c.Param("service"))
-	// 	log.Println(c.Param("path"))
-	// })
-	routerGroupV1 = "/api/v1"
-	api1 := r.Group(routerGroupV1)
+	api1 := r.Group("gateway/api/v1")
 	{
-		api1.GET("/:service/*path", func(c *gin.Context) {
-			log.Println(c.Param("service"))
-			remote, err := url.Parse("localhost:7890")
+		log.Println("gateway/api/v1")
+		api1.POST("/setredis?:key", func(c *gin.Context) {
+			c.Header("Content-Type", "application/json; charset=utf-8")
+			jsonData, err := c.GetRawData()
 			if err != nil {
-				panic(err)
+				c.JSON(400, map[string]interface{}{"error": "Bad request body"})
+			} else if c.Query("key") == "" {
+				c.JSON(400, map[string]interface{}{"error": "Key is not found"})
+			} else {
+				xxx, errSave := controllers.SaveRedis(c.Query("key"), string(jsonData))
+				if errSave != "" {
+					c.JSON(500, map[string]interface{}{"error": "Error occured when saving to redis server"})
+				} else {
+					c.String(200, xxx)
+				}
 			}
-			log.Println(c.Param("service"))
-			urlPath := strings.Replace(c.Request.URL.String(), routerGroupV1, "", 1)
-			log.Println("urlPath:", urlPath)
-			proxy := httputil.NewSingleHostReverseProxy(remote)
-			proxy.Director = func(req *http.Request) {
-				req.Header = c.Request.Header
-				req.Host = remote.Host
-				req.URL.Scheme = remote.Scheme
-				req.URL.Host = remote.Host
-				req.URL.Path = c.Param("xxx")
+
+		})
+		api1.GET("/getredis?:key", func(c *gin.Context) {
+			c.Header("Content-Type", "application/json; charset=utf-8")
+			if c.Query("key") == "" {
+				c.JSON(400, map[string]interface{}{"error": "Key is not found"})
+			} else {
+				xxx, errGet := controllers.GetRedis(c.Query("key"))
+				if errGet != "" {
+					c.JSON(500, map[string]interface{}{"error": errGet})
+				} else {
+					c.String(200, xxx)
+				}
 			}
 		})
 	}
+	r.NoRoute(func(c *gin.Context) {
+		c.JSON(404, gin.H{"code": "404", "message": "Gateway endpoint isn't found"})
+	})
+	// api2 := r.Group("gateway/api/v2")
+	// {
+	// 	api2.GET("/authenticate", func(c *gin.Context) {
+	// 		log.Println("authenticate")
+	// 	})
+	// }
+
 }
